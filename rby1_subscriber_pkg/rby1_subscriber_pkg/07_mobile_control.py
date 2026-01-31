@@ -44,7 +44,9 @@ def main(args=None):
     ros_thread = Thread(target=rclpy.spin, args=(subscriber,))
     ros_thread.start()
 
-    robot = rby1_sdk.create_robot_a("192.168.100.47:50051") # for real rby1
+    # robot = rby1_sdk.create_robot_a("192.168.100.47:50051") # for real rby1
+    robot = rby1_sdk.create_robot_a("192.168.0.100:50051")
+
     # robot = rby1_sdk.create_robot_a("localhost:50051") # for real rby1
     robot.connect()
 
