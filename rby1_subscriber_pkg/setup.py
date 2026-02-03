@@ -25,6 +25,7 @@ setup(
             '06_head_control = rby1_subscriber_pkg.06_head_control:main',
             '07_mobile_control = rby1_subscriber_pkg.07_mobile_control:main',
             '08_DH_dualarm_control_2 = rby1_subscriber_pkg.08_DH_dualarm_control_2:main',
+            '09_cartesian_pose_subscriber = rby1_subscriber_pkg.09_cartesian_pose_subscriber:main',
             'controller_manager_ui = rby1_subscriber_pkg.controller_manager_ui:main',
             'sorted_joint_state = rby1_subscriber_pkg.sorted_joint_state:main',           
         ],
