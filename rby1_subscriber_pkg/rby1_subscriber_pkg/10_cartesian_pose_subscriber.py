@@ -1,4 +1,5 @@
 from __future__ import annotations
+import rby1_sdk
 
 from typing import Optional, List
 import sys
@@ -15,8 +16,8 @@ logging.basicConfig(level=logging.INFO)
 
 # NOTE: Adjust this path to your rby1_sdk location or install the SDK
 sys.path.append('/home/ian/rby1_ws/rby1/rby1-sdk')
-import rby1_sdk
 
+DELTA_TIMEOUT = 0.5  # 0.5초 이상 끊기면 재초기화
 
 BODY_LINK_NAME = {"A": "link_torso_5", "M": "link_torso_5"}
 
@@ -27,11 +28,16 @@ BODY_LINK_NAME = {"A": "link_torso_5", "M": "link_torso_5"}
 class TargetStore:
     right: Optional[Pose] = None
     left: Optional[Pose] = None
-
+    right_time: float = 0.0
+    left_time: float = 0.0
+    right_timed_out: bool = True
+    left_timed_out: bool = True
 
 # -------------------------
 # Transform utilities
 # -------------------------
+
+
 def quaternion_to_rotation_matrix(q) -> np.ndarray:
     x, y, z, w = q.x, q.y, q.z, q.w
     n = x * x + y * y + z * z + w * w
@@ -53,7 +59,8 @@ def quaternion_to_rotation_matrix(q) -> np.ndarray:
 
 def pose_to_transform(pose: Pose) -> np.ndarray:
     R = quaternion_to_rotation_matrix(pose.orientation)
-    t = np.array([pose.position.x, pose.position.y, pose.position.z], dtype=float)
+    t = np.array([pose.position.x, pose.position.y,
+                 pose.position.z], dtype=float)
     T = np.eye(4, dtype=float)
     T[:3, :3] = R
     T[:3, 3] = t
@@ -64,11 +71,13 @@ def rot_y(angle: float) -> np.ndarray:
     c, s = float(np.cos(angle)), float(np.sin(angle))
     return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]], dtype=float)
 
+
 def make_transform(R: np.ndarray, t_xyz: List[float]) -> np.ndarray:
     T = np.eye(4, dtype=float)
     T[:3, :3] = R
     T[:3, 3] = np.array(t_xyz, dtype=float)
     return T
+
 
 def make_start_transform(yaw: float, offset_xyz: List[float]) -> np.ndarray:
     """
@@ -88,11 +97,13 @@ class TeleopCartesianNode(Node):
         super().__init__("teleop_cartesian_from_cumulative_ee_delta")
 
         # Subscriptions: cumulative delta in EE(start) frame
-        self.create_subscription(Pose, "/cartesian_target/ee_right", self._cb_right, 10)
-        self.create_subscription(Pose, "/cartesian_target/ee_left", self._cb_left, 10)
+        self.create_subscription(
+            Pose, "/cartesian_target/ee_right", self._cb_right, 10)
+        self.create_subscription(
+            Pose, "/cartesian_target/ee_left", self._cb_left, 10)
 
         # Robot connection
-        self.declare_parameter("robot_address", "192.168.0.100:50051")
+        self.declare_parameter("robot_address", "192.168.0.101:50051")
         self.declare_parameter("control_rate", 500)
 
         # Reference frame
@@ -108,10 +119,13 @@ class TeleopCartesianNode(Node):
         self.declare_parameter("left_start_rot_y", float(-np.pi / 4))
 
         # Cartesian command limits (07-style)
-        self.declare_parameter("minimum_time", 0.15)               # seconds (>= loop period)
+        # seconds (>= loop period)
+        self.declare_parameter("minimum_time", 0.15)
         self.declare_parameter("linear_velocity_limit", 0.3)      # m/s (slow)
-        self.declare_parameter("angular_velocity_limit", 1.0)      # rad/s (slow)
-        self.declare_parameter("acceleration_limit_scaling", 1.0)  # dimensionless
+        self.declare_parameter("angular_velocity_limit",
+                               1.0)      # rad/s (slow)
+        self.declare_parameter(
+            "acceleration_limit_scaling", 1.0)  # dimensionless
 
         # Robot parameters (optional, but mirrors 07 demo intent)
         self.declare_parameter("robot_default_accel_scaling", "0.8")
@@ -124,27 +138,39 @@ class TeleopCartesianNode(Node):
 
         self.reference_frame = str(self.get_parameter("reference_frame").value)
 
-        self.right_start_offset = list(self.get_parameter("right_start_offset").value)
-        self.left_start_offset = list(self.get_parameter("left_start_offset").value)
+        self.right_start_offset = list(
+            self.get_parameter("right_start_offset").value)
+        self.left_start_offset = list(
+            self.get_parameter("left_start_offset").value)
         # self.right_start_yaw = float(self.get_parameter("right_start_yaw").value)
         # self.left_start_yaw = float(self.get_parameter("left_start_yaw").value)
-        self.right_start_rot_y = float(self.get_parameter("right_start_rot_y").value)
-        self.left_start_rot_y = float(self.get_parameter("left_start_rot_y").value)
+        self.right_start_rot_y = float(
+            self.get_parameter("right_start_rot_y").value)
+        self.left_start_rot_y = float(
+            self.get_parameter("left_start_rot_y").value)
 
         self.minimum_time = float(self.get_parameter("minimum_time").value)
-        self.linear_velocity_limit = float(self.get_parameter("linear_velocity_limit").value)
-        self.angular_velocity_limit = float(self.get_parameter("angular_velocity_limit").value)
-        self.acceleration_limit_scaling = float(self.get_parameter("acceleration_limit_scaling").value)
+        self.linear_velocity_limit = float(
+            self.get_parameter("linear_velocity_limit").value)
+        self.angular_velocity_limit = float(
+            self.get_parameter("angular_velocity_limit").value)
+        self.acceleration_limit_scaling = float(
+            self.get_parameter("acceleration_limit_scaling").value)
 
-        self.robot_default_accel_scaling = str(self.get_parameter("robot_default_accel_scaling").value)
-        self.robot_cartesian_cutoff_hz = str(self.get_parameter("robot_cartesian_cutoff_hz").value)
-        self.robot_default_linear_acc_limit = str(self.get_parameter("robot_default_linear_acc_limit").value)
+        self.robot_default_accel_scaling = str(
+            self.get_parameter("robot_default_accel_scaling").value)
+        self.robot_cartesian_cutoff_hz = str(
+            self.get_parameter("robot_cartesian_cutoff_hz").value)
+        self.robot_default_linear_acc_limit = str(
+            self.get_parameter("robot_default_linear_acc_limit").value)
 
         # Fixed start transforms (body->ee_start)
         # self.T_start_right = make_start_transform(self.right_start_yaw, self.right_start_offset)
         # self.T_start_left = make_start_transform(self.left_start_yaw, self.left_start_offset)
-        self.T_start_right = make_transform(rot_y(self.right_start_rot_y), self.right_start_offset)
-        self.T_start_left  = make_transform(rot_y(self.left_start_rot_y),  self.left_start_offset)
+        self.T_start_right = make_transform(
+            rot_y(self.right_start_rot_y), self.right_start_offset)
+        self.T_start_left = make_transform(
+            rot_y(self.left_start_rot_y),  self.left_start_offset)
 
         self.get_logger().info(
             "Initialized. Set1 is right arm."
@@ -155,9 +181,13 @@ class TeleopCartesianNode(Node):
 
     def _cb_right(self, msg: Pose) -> None:
         TargetStore.right = msg
+        TargetStore.right_time = time.time()
+        TargetStore.right_timed_out = False
 
     def _cb_left(self, msg: Pose) -> None:
         TargetStore.left = msg
+        TargetStore.left_time = time.time()
+        TargetStore.left_timed_out = False
 
 
 # -------------------------
@@ -177,9 +207,12 @@ def main(args=None):
 
     # Apply robot-side parameters (optional)
     try:
-        robot.set_parameter("default.acceleration_limit_scaling", node.robot_default_accel_scaling)
-        robot.set_parameter("cartesian_command.cutoff_frequency", node.robot_cartesian_cutoff_hz)
-        robot.set_parameter("default.linear_acceleration_limit", node.robot_default_linear_acc_limit)
+        robot.set_parameter("default.acceleration_limit_scaling",
+                            node.robot_default_accel_scaling)
+        robot.set_parameter("cartesian_command.cutoff_frequency",
+                            node.robot_cartesian_cutoff_hz)
+        robot.set_parameter("default.linear_acceleration_limit",
+                            node.robot_default_linear_acc_limit)
     except Exception as e:
         node.get_logger().warning(f"Could not set robot parameters: {e}")
 
@@ -194,11 +227,93 @@ def main(args=None):
     node.get_logger().info("Starting teleop loop (CartesianCommand)")
 
     try:
-        while rclpy.ok():
-            t0 = time.time()
+        # initialize teleop start pose ONCE
+        state = robot.get_state()
 
-            model_name = robot.model().model_name
-            body_link = BODY_LINK_NAME.get(model_name, node.reference_frame)
+        model_name = robot.model().model_name
+        body_link = BODY_LINK_NAME.get(model_name, node.reference_frame)
+
+        dyn_robot = robot.get_dynamics()
+        link_names = dyn_robot.get_link_names()
+        dyn_joint_names = dyn_robot.get_joint_names()
+
+        # 🔥 핵심: 이름 기반 재정렬
+        model_joint_names = robot.model().robot_joint_names
+
+        name_to_pos = dict(zip(model_joint_names, state.position))
+
+        q_dyn = np.array([name_to_pos[name]
+                         for name in dyn_joint_names], dtype=float)
+
+        dyn_state = dyn_robot.make_state(link_names, dyn_joint_names)
+        dyn_state.set_q(q_dyn)
+        dyn_state.set_qdot(np.zeros_like(q_dyn))
+        dyn_state.set_qddot(np.zeros_like(q_dyn))
+
+        dyn_robot.compute_forward_kinematics(dyn_state)
+
+        base_idx = link_names.index(body_link)
+        ee_r_idx = link_names.index("ee_right")
+        ee_l_idx = link_names.index("ee_left")
+
+        node.T_start_right = dyn_robot.compute_transformation(
+            dyn_state, base_idx, ee_r_idx
+        )
+        node.T_start_left = dyn_robot.compute_transformation(
+            dyn_state, base_idx, ee_l_idx
+        )
+
+        print("Teleop start pose initialized.")
+
+        while rclpy.ok():
+            now = time.time()
+            right_alive = (now - TargetStore.right_time) <= DELTA_TIMEOUT
+            left_alive = (now - TargetStore.left_time) <= DELTA_TIMEOUT
+
+            if not right_alive:
+                TargetStore.right = None  # 끊김 처리
+            if not left_alive:
+                TargetStore.left = None   # 끊김 처리
+
+            # RIGHT arm 재초기화 조건
+            if (now - TargetStore.right_time > DELTA_TIMEOUT) and (not TargetStore.right_timed_out):
+                # 현재 FK로 T_start 재설정
+                state = robot.get_state()
+                model_joint_names = robot.model().robot_joint_names
+                dyn_joint_names = dyn_robot.get_joint_names()
+                name_to_pos = dict(zip(model_joint_names, state.position))
+                q_dyn = np.array([name_to_pos[n]
+                                 for n in dyn_joint_names], dtype=float)
+
+                dyn_state.set_q(q_dyn)
+                dyn_robot.compute_forward_kinematics(dyn_state)
+
+                node.T_start_right = dyn_robot.compute_transformation(
+                    dyn_state, base_idx, ee_r_idx
+                )
+                # 끊김 처리(최소 수정 1과 동일 효과)
+                TargetStore.right = None
+
+            if now - TargetStore.left_time > DELTA_TIMEOUT and (not TargetStore.left_timed_out):
+                # 현재 FK로 T_start 재설정
+
+                state = robot.get_state()
+                model_joint_names = robot.model().robot_joint_names
+                dyn_joint_names = dyn_robot.get_joint_names()
+                name_to_pos = dict(zip(model_joint_names, state.position))
+                q_dyn = np.array([name_to_pos[n]
+                                 for n in dyn_joint_names], dtype=float)
+
+                dyn_state.set_q(q_dyn)
+                dyn_robot.compute_forward_kinematics(dyn_state)
+
+                node.T_start_left = dyn_robot.compute_transformation(
+                    dyn_state, base_idx, ee_l_idx
+                )
+                # 끊김 처리(최소 수정 1과 동일 효과)
+                TargetStore.left = None
+
+            t0 = time.time()
 
             targets = []
 
@@ -208,7 +323,7 @@ def main(args=None):
                     delta = pose_to_transform(TargetStore.right)
                     T_right = node.T_start_right @ delta
                     targets.append(("ee_right", T_right))
-                    print("T_right:", T_right, flush=True)
+                    # print("T_right:", T_right, flush=True)
                 except Exception as e:
                     node.get_logger().error(f"Right target error: {e}")
 
@@ -218,7 +333,7 @@ def main(args=None):
                     delta = pose_to_transform(TargetStore.left)
                     T_left = node.T_start_left @ delta
                     targets.append(("ee_left", T_left))
-                    print("T_left:", T_left, flush=True)
+                    # print("T_left:", T_left, flush=True)
                 except Exception as e:
                     node.get_logger().error(f"Left target error: {e}")
 
@@ -239,7 +354,23 @@ def main(args=None):
                 rc = rby1_sdk.RobotCommandBuilder().set_command(
                     rby1_sdk.ComponentBasedCommandBuilder().set_body_command(cb)
                 )
-                stream.send_command(rc)
+
+                try:
+                    stream.send_command(rc)
+                except RuntimeError as e:
+                    if "expired" in str(e):
+                        print("Command stream expired. Recreating stream...")
+                        stream = robot.create_command_stream()
+                        stream.send_command(rc)
+                    else:
+                        raise
+                # Logging joint pos
+                state = robot.get_state()
+                # numpy array, shape (DOF,)
+                target_joint_positions = state.target_position
+                current_joint_positions = state.position        # 현재 joint position
+                # print(f"Target Joint Positions: {target_joint_positions}", flush=True)
+                # print(f"Current Joint Positions: {current_joint_positions}", flush=True)
 
             # timing
             elapsed = time.time() - t0
