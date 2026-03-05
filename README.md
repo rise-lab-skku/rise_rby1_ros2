@@ -6,6 +6,26 @@
 > This software is currently under active development, and its stability is not guaranteed.  
 > Various bugs may occur during use, so please proceed with caution.
 
+**Table of Contents**
+- [rby1\_ros2](#rby1_ros2)
+  - [Installation](#installation)
+    - [Install system dependencies](#install-system-dependencies)
+    - [Install ROS 2 package dependencies](#install-ros-2-package-dependencies)
+    - [Set up environment](#set-up-environment)
+    - [Build from source](#build-from-source)
+      - [Create ROS 2 workspace](#create-ros-2-workspace)
+      - [Clone repo and build `rby1_ros2` packages:](#clone-repo-and-build-rby1_ros2-packages)
+  - [How to Use](#how-to-use)
+    - [Manipulation](#manipulation)
+      - [1. Bring Up](#1-bring-up)
+      - [2. MoveIt Config](#2-moveit-config)
+      - [Available Controllers](#available-controllers)
+    - [Mobile Controller](#mobile-controller)
+      - [Publish mobile control msg](#publish-mobile-control-msg)
+      - [Subscribe mobile control msg](#subscribe-mobile-control-msg)
+  - [Vive Tracker Teleoperation](#vive-tracker-teleoperation)
+
+
 ## Installation
 ### Install system dependencies
 ```shell
@@ -140,3 +160,29 @@ ros2 run rby1_mobile_control mobile_publisher
 ros2 run rby1_subscriber_pkg 07_mobile_control
 ```
 
+## Vive Tracker Teleoperation
+This is a Vive Tracker to RBY1 teleoperation example.
+KDL solves the inverse kinematics for task-space commands from the Vive tracker.
+
+`vive_tracker_right` and `vive_tracker_left` links and joints are attached in `rby1.urdf` within `rby1_description_pkg` for convenience during teleoperation.
+Users can change their positions for different end tools.
+
+- Change vive tracker position
+    ```
+    <joint name="vive_tracker_right_joint" type="fixed">
+        <parent link="link_right_arm_6"/>
+        <child link="vive_tracker_right"/>
+        <origin xyz="0 -0.05 -0.05" rpy="-1.5708 3.1416 0"/> # <-- change here
+    </joint>
+
+    <joint name="vive_tracker_left_joint" type="fixed">
+        <parent link="link_left_arm_6"/>
+        <child link="vive_tracker_left"/>
+        <origin xyz="0 0.05 -0.05" rpy="1.5708 0 0"/> # <-- change here
+    </joint>
+    ```
+- Run teleop
+    ```sh
+    cd rby1_subscriber_pkg/rby1_subscriber_pkg
+    python3 vive_rby1_joint_teleop.py
+    ```
