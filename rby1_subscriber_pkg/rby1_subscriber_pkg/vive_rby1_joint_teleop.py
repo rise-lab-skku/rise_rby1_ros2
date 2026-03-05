@@ -22,11 +22,30 @@ import rby1_sdk
 # RBY1 joint names from URDF (24 joints total)
 # Order: wheels, torso, right_arm, left_arm, head
 DEFAULT_JOINT_NAMES = [
-    'right_wheel', 'left_wheel',
-    'torso_0', 'torso_1', 'torso_2', 'torso_3', 'torso_4', 'torso_5',
-    'right_arm_0', 'right_arm_1', 'right_arm_2', 'right_arm_3', 'right_arm_4', 'right_arm_5', 'right_arm_6',
-    'left_arm_0', 'left_arm_1', 'left_arm_2', 'left_arm_3', 'left_arm_4', 'left_arm_5', 'left_arm_6',
-    'head_0', 'head_1',
+    "right_wheel",
+    "left_wheel",
+    "torso_0",
+    "torso_1",
+    "torso_2",
+    "torso_3",
+    "torso_4",
+    "torso_5",
+    "right_arm_0",
+    "right_arm_1",
+    "right_arm_2",
+    "right_arm_3",
+    "right_arm_4",
+    "right_arm_5",
+    "right_arm_6",
+    "left_arm_0",
+    "left_arm_1",
+    "left_arm_2",
+    "left_arm_3",
+    "left_arm_4",
+    "left_arm_5",
+    "left_arm_6",
+    "head_0",
+    "head_1",
 ]
 
 
@@ -34,9 +53,10 @@ class TeleopPosePublisher(Node):
     def __init__(self):
         super().__init__("vive_teleop_pose_publisher")
 
-        self.declare_parameter('robot_address', '192.168.0.101:50051')
-        self.robot_address = self.get_parameter(
-            'robot_address').get_parameter_value().string_value
+        self.declare_parameter("robot_address", "192.168.0.101:50051")
+        self.robot_address = (
+            self.get_parameter("robot_address").get_parameter_value().string_value
+        )
 
         self.test_mode = False
         self.test_pose = Pose()
@@ -65,8 +85,12 @@ class TeleopPosePublisher(Node):
         self.right_ik = None
         self.model_loaded = False
         self.torso_joint_names = [
-            "torso_0", "torso_1", "torso_2",
-            "torso_3", "torso_4", "torso_5",
+            "torso_0",
+            "torso_1",
+            "torso_2",
+            "torso_3",
+            "torso_4",
+            "torso_5",
         ]
         self.torso_hold_positions = None
 
@@ -77,24 +101,19 @@ class TeleopPosePublisher(Node):
         self._load_rby1_model()
 
         # 3. ROS 구독자 설정
-        self.create_subscription(
-            Bool, "/enable_teleop", self.cb_enable_teleop, 10)
-        self.create_subscription(
-            Pose, "/vive_tracker_1/pose", self.cb_set1_pose, 10)
-        self.create_subscription(
-            Pose, "/vive_tracker_2/pose", self.cb_set2_pose, 10)
+        self.create_subscription(Bool, "/enable_teleop", self.cb_enable_teleop, 10)
+        self.create_subscription(Pose, "/vive_tracker_1/pose", self.cb_set1_pose, 10)
+        self.create_subscription(Pose, "/vive_tracker_2/pose", self.cb_set2_pose, 10)
 
         # 4. 제어 루프 타이머 (100Hz)
         self.publish_timer = self.create_timer(0.01, self.control_loop)
 
     def _init_robot(self):
-        self.get_logger().info(
-            f"Connecting to RBY1 at {self.robot_address}...")
+        self.get_logger().info(f"Connecting to RBY1 at {self.robot_address}...")
         self.robot = rby1_sdk.create_robot_a(self.robot_address)
         self.robot.connect()
 
-        self.robot.set_parameter(
-            "joint_position_command.cutoff_frequency", "5")
+        self.robot.set_parameter("joint_position_command.cutoff_frequency", "5")
         self.robot.set_parameter("default.acceleration_limit_scaling", "0.8")
 
         self.robot.power_on(".*")
@@ -117,7 +136,7 @@ class TeleopPosePublisher(Node):
         try:
             state = self.robot.get_state()
             position = self._extract_first_existing_attr(
-                state, ['position', 'joint_position', 'current_position'], default=[]
+                state, ["position", "joint_position", "current_position"], default=[]
             )
             position = list(position)
 
@@ -128,7 +147,8 @@ class TeleopPosePublisher(Node):
             return True
         except Exception as error:
             self.get_logger().warning(
-                f'Failed to read joint states from robot: {error}')
+                f"Failed to read joint states from robot: {error}"
+            )
             return False
 
     def cb_enable_teleop(self, msg: Bool):
@@ -143,7 +163,11 @@ class TeleopPosePublisher(Node):
             self.enable_teleop = msg.data
 
     def cb_set1_pose(self, msg: Pose):
-        if not self.enable_teleop or not self.model_loaded or not self.current_joint_dict:
+        if (
+            not self.enable_teleop
+            or not self.model_loaded
+            or not self.current_joint_dict
+        ):
             return
 
         if self.test_mode:
@@ -168,7 +192,11 @@ class TeleopPosePublisher(Node):
             self.latest_left_positions = left_positions
 
     def cb_set2_pose(self, msg: Pose):
-        if not self.enable_teleop or not self.model_loaded or not self.current_joint_dict:
+        if (
+            not self.enable_teleop
+            or not self.model_loaded
+            or not self.current_joint_dict
+        ):
             return
 
         if self.test_mode:
@@ -210,14 +238,16 @@ class TeleopPosePublisher(Node):
                 self.base_ee_right = self._get_current_ee_frame(
                     self.right_chain, self.right_fk, self.right_joint_names
                 )
-            left_target = self._compose_target_frame(
-                self.base_ee_left, self.test_pose)
+            left_target = self._compose_target_frame(self.base_ee_left, self.test_pose)
             right_target = self._compose_target_frame(
-                self.base_ee_right, self.test_pose)
+                self.base_ee_right, self.test_pose
+            )
             left_positions = self._solve_ik(
-                self.left_chain, self.left_ik, self.left_joint_names, left_target)
+                self.left_chain, self.left_ik, self.left_joint_names, left_target
+            )
             right_positions = self._solve_ik(
-                self.right_chain, self.right_ik, self.right_joint_names, right_target)
+                self.right_chain, self.right_ik, self.right_joint_names, right_target
+            )
             if left_positions is not None:
                 self.latest_left_positions = left_positions
             if right_positions is not None:
@@ -231,16 +261,22 @@ class TeleopPosePublisher(Node):
         dy = target.position.y - ref.position.y
         dz = target.position.z - ref.position.z
         o_R_ee = R.from_quat(
-            [ref.orientation.x, ref.orientation.y,
-                ref.orientation.z, ref.orientation.w]
+            [ref.orientation.x, ref.orientation.y, ref.orientation.z, ref.orientation.w]
         ).as_matrix()
         trans_vec = np.array([dx, dy, dz])
         trans_vec_ee = np.dot(np.transpose(o_R_ee), trans_vec)
 
-        q1 = np.array([ref.orientation.x, ref.orientation.y,
-                      ref.orientation.z, ref.orientation.w])
-        q2 = np.array([target.orientation.x, target.orientation.y,
-                      target.orientation.z, target.orientation.w])
+        q1 = np.array(
+            [ref.orientation.x, ref.orientation.y, ref.orientation.z, ref.orientation.w]
+        )
+        q2 = np.array(
+            [
+                target.orientation.x,
+                target.orientation.y,
+                target.orientation.z,
+                target.orientation.w,
+            ]
+        )
 
         o_R_q1 = R.from_quat(q1)
         o_R_q2 = R.from_quat(q2)
@@ -267,8 +303,7 @@ class TeleopPosePublisher(Node):
 
         urdf_path = os.path.join(share_dir, "urdf", "rby1.urdf.xacro")
         if not os.path.exists(urdf_path):
-            self.get_logger().error(
-                f"rby1.urdf.xacro not found at {urdf_path}")
+            self.get_logger().error(f"rby1.urdf.xacro not found at {urdf_path}")
             return
 
         try:
@@ -303,8 +338,7 @@ class TeleopPosePublisher(Node):
 
         try:
             self.left_chain = tree.getChain(self.base_link, self.left_ee_link)
-            self.right_chain = tree.getChain(
-                self.base_link, self.right_ee_link)
+            self.right_chain = tree.getChain(self.base_link, self.right_ee_link)
         except Exception:
             return
 
@@ -340,7 +374,12 @@ class TeleopPosePublisher(Node):
             positions.append(self.current_joint_dict[name])
         return np.array(positions, dtype=float)
 
-    def _get_current_ee_frame(self, chain: PyKDL.Chain, fk_solver: PyKDL.ChainFkSolverPos_recursive, joint_names: list) -> PyKDL.Frame:
+    def _get_current_ee_frame(
+        self,
+        chain: PyKDL.Chain,
+        fk_solver: PyKDL.ChainFkSolverPos_recursive,
+        joint_names: list,
+    ) -> PyKDL.Frame:
         if chain is None or fk_solver is None or len(joint_names) == 0:
             return None
         current_positions = self._get_current_joint_positions(joint_names)
@@ -355,26 +394,45 @@ class TeleopPosePublisher(Node):
         fk_solver.JntToCart(q, frame)
         return frame
 
-    def _compose_target_frame(self, base_frame: PyKDL.Frame, rel_pose: Pose) -> PyKDL.Frame:
+    def _compose_target_frame(
+        self, base_frame: PyKDL.Frame, rel_pose: Pose
+    ) -> PyKDL.Frame:
         if base_frame is None:
             return None
 
-        rot = R.from_quat([rel_pose.orientation.x, rel_pose.orientation.y,
-                          rel_pose.orientation.z, rel_pose.orientation.w])
+        rot = R.from_quat(
+            [
+                rel_pose.orientation.x,
+                rel_pose.orientation.y,
+                rel_pose.orientation.z,
+                rel_pose.orientation.w,
+            ]
+        )
         rot_m = rot.as_matrix()
         kdl_rot = PyKDL.Rotation(
-            rot_m[0, 0], rot_m[0, 1], rot_m[0, 2],
-            rot_m[1, 0], rot_m[1, 1], rot_m[1, 2],
-            rot_m[2, 0], rot_m[2, 1], rot_m[2, 2],
+            rot_m[0, 0],
+            rot_m[0, 1],
+            rot_m[0, 2],
+            rot_m[1, 0],
+            rot_m[1, 1],
+            rot_m[1, 2],
+            rot_m[2, 0],
+            rot_m[2, 1],
+            rot_m[2, 2],
         )
         rel_frame = PyKDL.Frame(
             kdl_rot,
-            PyKDL.Vector(rel_pose.position.x, rel_pose.position.y,
-                         rel_pose.position.z),
+            PyKDL.Vector(rel_pose.position.x, rel_pose.position.y, rel_pose.position.z),
         )
         return base_frame * rel_frame
 
-    def _solve_ik(self, chain: PyKDL.Chain, ik_solver: PyKDL.ChainIkSolverPos_LMA, joint_names: list, target_frame: PyKDL.Frame):
+    def _solve_ik(
+        self,
+        chain: PyKDL.Chain,
+        ik_solver: PyKDL.ChainIkSolverPos_LMA,
+        joint_names: list,
+        target_frame: PyKDL.Frame,
+    ):
         if len(joint_names) == 0 or target_frame is None:
             return None
 
@@ -400,18 +458,15 @@ class TeleopPosePublisher(Node):
 
         # 계산된 타겟이 없으면 현재 상태 유지
         if left_positions is None:
-            left_positions = self._get_current_joint_positions(
-                self.left_joint_names)
+            left_positions = self._get_current_joint_positions(self.left_joint_names)
         if right_positions is None:
-            right_positions = self._get_current_joint_positions(
-                self.right_joint_names)
+            right_positions = self._get_current_joint_positions(self.right_joint_names)
 
         if left_positions is None or right_positions is None:
             return
 
         if self.torso_hold_positions is None:
-            torso_positions = self._get_current_joint_positions(
-                self.torso_joint_names)
+            torso_positions = self._get_current_joint_positions(self.torso_joint_names)
             if torso_positions is not None:
                 self.torso_hold_positions = torso_positions
         else:
@@ -426,19 +481,25 @@ class TeleopPosePublisher(Node):
                     rby1_sdk.BodyComponentBasedCommandBuilder()
                     .set_torso_command(
                         rby1_sdk.JointPositionCommandBuilder()
-                        .set_command_header(rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5))
+                        .set_command_header(
+                            rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
+                        )
                         .set_minimum_time(0.05)
                         .set_position(torso_positions)
                     )
                     .set_right_arm_command(
                         rby1_sdk.JointPositionCommandBuilder()
-                        .set_command_header(rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5))
+                        .set_command_header(
+                            rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
+                        )
                         .set_minimum_time(0.05)
                         .set_position(right_positions)
                     )
                     .set_left_arm_command(
                         rby1_sdk.JointPositionCommandBuilder()
-                        .set_command_header(rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5))
+                        .set_command_header(
+                            rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
+                        )
                         .set_minimum_time(0.05)
                         .set_position(left_positions)
                     )
@@ -446,8 +507,7 @@ class TeleopPosePublisher(Node):
             )
             self.stream.send_command(rc)
         except Exception as error:
-            self.get_logger().warning(
-                f'Failed to send command to robot: {error}')
+            self.get_logger().warning(f"Failed to send command to robot: {error}")
 
 
 def main():
@@ -460,7 +520,7 @@ def main():
         pass
     finally:
         try:
-            if hasattr(node, 'robot'):
+            if hasattr(node, "robot"):
                 node.get_logger().info("Disconnecting from RBY1 robot...")
                 node.robot.disconnect()
         except Exception:
