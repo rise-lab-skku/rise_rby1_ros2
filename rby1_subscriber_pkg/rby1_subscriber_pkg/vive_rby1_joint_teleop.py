@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+import time  # Homing 시 time.sleep 사용
 
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
 from scipy.spatial.transform import Rotation as R
 import numpy as np
 
@@ -53,7 +54,7 @@ class TeleopPosePublisher(Node):
     def __init__(self):
         super().__init__("vive_teleop_pose_publisher")
 
-        self.declare_parameter("robot_address", "192.168.0.101:50051")
+        self.declare_parameter("robot_address", "192.168.30.1:50051")
         self.robot_address = (
             self.get_parameter("robot_address").get_parameter_value().string_value
         )
@@ -66,7 +67,7 @@ class TeleopPosePublisher(Node):
         self.curr_pose_set1 = None
         self.curr_pose_set2 = None
 
-        self.current_joint_dict = {}  # 로봇에서 읽어온 현재 관절 상태 캐시
+        self.current_joint_dict = {}
         self.base_ee_left = None
         self.base_ee_right = None
         self.latest_left_positions = None
@@ -94,8 +95,23 @@ class TeleopPosePublisher(Node):
         ]
         self.torso_hold_positions = None
 
+        # 그리퍼 Homing 값 저장을 위한 변수 초기화
+        self.gripper_min_q = np.array([np.inf, np.inf])
+        self.gripper_max_q = np.array([-np.inf, -np.inf])
+
         # 1. RBY1 SDK 로봇 연결 및 초기화
         self._init_robot()
+
+        # 1-2. 그리퍼 초기화 및 Homing
+        self.gripper_bus = None
+        self.gripper_action_ready = False
+        self.latest_left_gripper_action = 0.0
+        self.latest_right_gripper_action = 0.0
+        self._init_gripper()
+
+        # 왼손/오른손 각각 Float32 퍼블리셔 생성
+        self.left_gripper_pub = self.create_publisher(Float32, "/rby1/left_gripper_state", 10)
+        self.right_gripper_pub = self.create_publisher(Float32, "/rby1/right_gripper_state", 10)
 
         # 2. RBY1 URDF/KDL 모델 로드
         self._load_rby1_model()
@@ -104,6 +120,12 @@ class TeleopPosePublisher(Node):
         self.create_subscription(Bool, "/enable_teleop", self.cb_enable_teleop, 10)
         self.create_subscription(Pose, "/vive_tracker_1/pose", self.cb_set1_pose, 10)
         self.create_subscription(Pose, "/vive_tracker_2/pose", self.cb_set2_pose, 10)
+        self.create_subscription(
+            Float32, "/rby1/left_gripper_action", self.cb_left_gripper_action, 10
+        )
+        self.create_subscription(
+            Float32, "/rby1/right_gripper_action", self.cb_right_gripper_action, 10
+        )
 
         # 4. 제어 루프 타이머 (100Hz)
         self.publish_timer = self.create_timer(0.01, self.control_loop)
@@ -118,21 +140,118 @@ class TeleopPosePublisher(Node):
 
         self.robot.power_on(".*")
         self.robot.servo_on("right_arm_.*|left_arm_.*|torso_.*")
+        for arm in ["right", "left"]:
+            if not self.robot.set_tool_flange_output_voltage(arm, 12):
+                self.get_logger().error(f"Failed to set tool flange output voltage ({arm}) as 12v")
         self.robot.reset_fault_control_manager()
         self.robot.enable_control_manager()
 
         self.stream = self.robot.create_command_stream()
         self.get_logger().info("Robot connected and control manager enabled.")
 
+    def _init_gripper(self):
+        self.get_logger().info("Init gripper...")
+        try:
+            self.get_logger().info("Initializing gripper...")
+            self.gripper_bus = rby1_sdk.DynamixelBus(rby1_sdk.upc.GripperDeviceName)
+            
+            if not self.gripper_bus.open_port():
+                self.get_logger().error("Failed to open port for Gripper DynamixelBus.")
+                self.gripper_bus = None
+                return
+            
+            self.gripper_bus.set_baud_rate(2_000_000)
+            self.gripper_bus.set_torque_constant([1, 1])
+            
+            gripper_active = True
+            for dev_id in [0, 1]:
+                if not self.gripper_bus.ping(dev_id):
+                    self.get_logger().error(f"Gripper Dynamixel ID {dev_id} is not active")
+                    gripper_active = False
+            
+            if gripper_active:
+                self.get_logger().info("Gripper initialized successfully. Starting homing process...")
+                self.gripper_bus.group_sync_write_torque_enable([(dev_id, 1) for dev_id in [0, 1]])
+                self._homing_gripper()
+                self._enable_gripper_action_control()
+            else:
+                self.gripper_bus = None
+                
+        except Exception as e:
+            self.get_logger().warning(f"Failed to setup gripper: {e}")
+            self.gripper_bus = None
+
+    def _enable_gripper_action_control(self):
+        if self.gripper_bus is None:
+            self.gripper_action_ready = False
+            return
+
+        try:
+            self._set_gripper_operating_mode(
+                rby1_sdk.DynamixelBus.CurrentBasedPositionControlMode
+            )
+            self.gripper_bus.group_sync_write_send_torque(
+                [(dev_id, 5) for dev_id in [0, 1]]
+            )
+            self.gripper_action_ready = True
+            self.get_logger().info(
+                "Gripper action control enabled: /rby1/left_gripper_action, /rby1/right_gripper_action"
+            )
+        except Exception as error:
+            self.gripper_action_ready = False
+            self.get_logger().warning(
+                f"Failed to enable gripper action control: {error}"
+            )
+
+    # 그리퍼 Operating Mode 설정 
+    def _set_gripper_operating_mode(self, mode):
+        self.gripper_bus.group_sync_write_torque_enable([(dev_id, 0) for dev_id in [0, 1]])
+        self.gripper_bus.group_sync_write_operating_mode([(dev_id, mode) for dev_id in [0, 1]])
+        self.gripper_bus.group_sync_write_torque_enable([(dev_id, 1) for dev_id in [0, 1]])
+
+    # 그리퍼 Homing 로직 (가동 범위 확인)
+    def _homing_gripper(self):
+        self._set_gripper_operating_mode(rby1_sdk.DynamixelBus.CurrentControlMode)
+        direction = 0
+        q = np.array([0, 0], dtype=np.float64)
+        prev_q = np.array([0, 0], dtype=np.float64)
+        counter = 0
+        
+        while direction < 2:
+            self.gripper_bus.group_sync_write_send_torque(
+                [(dev_id, 0.5 * (1 if direction == 0 else -1)) for dev_id in [0, 1]]
+            )
+            rv = self.gripper_bus.group_fast_sync_read_encoder([0, 1])
+            if rv is not None:
+                for dev_id, enc in rv:
+                    q[dev_id] = enc
+            
+            self.gripper_min_q = np.minimum(self.gripper_min_q, q)
+            self.gripper_max_q = np.maximum(self.gripper_max_q, q)
+            
+            if np.array_equal(prev_q, q):
+                counter += 1
+            
+            prev_q = q.copy()  # 원본 버그 수정: 참조 복사가 아닌 값 복사로 변경
+            
+            if counter >= 30:
+                direction += 1
+                counter = 0
+            time.sleep(0.1)
+
+        self.get_logger().info(f"Gripper homing completed. Min: {self.gripper_min_q}, Max: {self.gripper_max_q}")
+        
+        # Homing 후 그리퍼를 자유롭게 읽을 수 있도록 토크를 끕니다
+        # (만약 로봇 제어쪽에서 위치를 계속 유지해야 한다면 이 부분을 주석 처리해야 할 수 있습니다.)
+        self.gripper_bus.group_sync_write_torque_enable([(dev_id, 0) for dev_id in [0, 1]])
+
     def _extract_first_existing_attr(self, obj, names, default=None):
-        """SDK State 객체에서 속성을 안전하게 추출하기 위한 유틸리티"""
         for name in names:
             if hasattr(obj, name):
                 return getattr(obj, name)
         return default
 
     def _update_current_state(self) -> bool:
-        """로봇에서 관절 상태를 읽어 내부 딕셔너리에 저장합니다."""
         try:
             state = self.robot.get_state()
             position = self._extract_first_existing_attr(
@@ -220,16 +339,78 @@ class TeleopPosePublisher(Node):
         if right_positions is not None:
             self.latest_right_positions = right_positions
 
+    def _set_gripper_action(self, dev_id: int, action_value: float):
+        if self.gripper_bus is None or not self.gripper_action_ready:
+            return
+
+        if not np.isfinite(self.gripper_min_q[dev_id]) or not np.isfinite(
+            self.gripper_max_q[dev_id]
+        ):
+            return
+
+        action_clipped = float(np.clip(action_value, 0.0, 1.0))
+        target_enc = action_clipped * (
+            self.gripper_max_q[dev_id] - self.gripper_min_q[dev_id]
+        ) + self.gripper_min_q[dev_id]
+
+        try:
+            self.gripper_bus.group_sync_write_send_position([(dev_id, float(target_enc))])
+        except Exception as error:
+            self.get_logger().warning(
+                f"Failed to send gripper action (id={dev_id}, action={action_clipped}): {error}"
+            )
+
+    def cb_left_gripper_action(self, msg: Float32):
+        self.latest_left_gripper_action = float(np.clip(msg.data, 0.0, 1.0))
+        self._set_gripper_action(dev_id=1, action_value=self.latest_left_gripper_action)
+
+    def cb_right_gripper_action(self, msg: Float32):
+        self.latest_right_gripper_action = float(np.clip(msg.data, 0.0, 1.0))
+        self._set_gripper_action(dev_id=0, action_value=self.latest_right_gripper_action)
+
+    # [수정된 부분] Homing 값으로 Normalize 처리 추가
+    def _publish_gripper_state(self):
+        if self.gripper_bus is None:
+            return
+
+        try:
+            rv = self.gripper_bus.group_fast_sync_read_encoder([0, 1])
+            if rv is not None:
+                for dev_id, enc in rv:
+                    
+                    # 0으로 나누어지는 오류(Division by Zero) 방지
+                    range_val = self.gripper_max_q[dev_id] - self.gripper_min_q[dev_id]
+                    if range_val <= 0:
+                        continue
+
+                    # 0.0 ~ 1.0 범위로 정규화 및 클리핑
+                    normalized_val = (enc - self.gripper_min_q[dev_id]) / range_val
+                    normalized_val = float(np.clip(normalized_val, 0.0, 1.0))
+
+                    msg = Float32()
+                    msg.data = normalized_val
+                    
+                    # ID 0 = Right, ID 1 = Left 매핑
+                    if dev_id == 0:
+                        self.right_gripper_pub.publish(msg)
+                    elif dev_id == 1:
+                        self.left_gripper_pub.publish(msg)
+                        
+        except Exception as e:
+            self.get_logger().error(f"Error reading gripper encoder: {e}", throttle_duration_sec=2.0)
+
     def control_loop(self):
         # 1. 최신 관절 상태 업데이트
         if not self._update_current_state():
             return
 
+        # 1.5. 그리퍼 상태 읽기 및 정규화하여 퍼블리시
+        self._publish_gripper_state()
+
         if not self.enable_teleop or not self.model_loaded:
             return
 
         if self.test_mode:
-            # (테스트 모드 로직은 원본 유지. 직접 IK 구해서 latest_xxx_positions 갱신)
             if self.base_ee_left is None:
                 self.base_ee_left = self._get_current_ee_frame(
                     self.left_chain, self.left_fk, self.left_joint_names
@@ -374,6 +555,13 @@ class TeleopPosePublisher(Node):
             positions.append(self.current_joint_dict[name])
         return np.array(positions, dtype=float)
 
+    def _positions_to_list(self, positions):
+        if positions is None:
+            return None
+        if isinstance(positions, np.ndarray):
+            return positions.tolist()
+        return list(positions)
+
     def _get_current_ee_frame(
         self,
         chain: PyKDL.Chain,
@@ -452,11 +640,9 @@ class TeleopPosePublisher(Node):
         return [q_out[i] for i in range(q_out.rows())]
 
     def _send_robot_command(self) -> None:
-        """IK로 계산된 각도를 로봇에 전송합니다."""
         left_positions = self.latest_left_positions
         right_positions = self.latest_right_positions
 
-        # 계산된 타겟이 없으면 현재 상태 유지
         if left_positions is None:
             left_positions = self._get_current_joint_positions(self.left_joint_names)
         if right_positions is None:
@@ -475,37 +661,52 @@ class TeleopPosePublisher(Node):
         if torso_positions is None:
             return
 
-        try:
-            rc = rby1_sdk.RobotCommandBuilder().set_command(
-                rby1_sdk.ComponentBasedCommandBuilder().set_body_command(
-                    rby1_sdk.BodyComponentBasedCommandBuilder()
-                    .set_torso_command(
-                        rby1_sdk.JointPositionCommandBuilder()
-                        .set_command_header(
-                            rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
-                        )
-                        .set_minimum_time(0.05)
-                        .set_position(torso_positions)
+        rc = rby1_sdk.RobotCommandBuilder().set_command(
+            rby1_sdk.ComponentBasedCommandBuilder().set_body_command(
+                rby1_sdk.BodyComponentBasedCommandBuilder()
+                .set_torso_command(
+                    rby1_sdk.JointPositionCommandBuilder()
+                    .set_command_header(
+                        rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
                     )
-                    .set_right_arm_command(
-                        rby1_sdk.JointPositionCommandBuilder()
-                        .set_command_header(
-                            rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
-                        )
-                        .set_minimum_time(0.05)
-                        .set_position(right_positions)
+                    .set_minimum_time(0.05)
+                    .set_position(torso_positions)
+                )
+                .set_right_arm_command(
+                    rby1_sdk.JointPositionCommandBuilder()
+                    .set_command_header(
+                        rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
                     )
-                    .set_left_arm_command(
-                        rby1_sdk.JointPositionCommandBuilder()
-                        .set_command_header(
-                            rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
-                        )
-                        .set_minimum_time(0.05)
-                        .set_position(left_positions)
+                    .set_minimum_time(0.05)
+                    .set_position(right_positions)
+                )
+                .set_left_arm_command(
+                    rby1_sdk.JointPositionCommandBuilder()
+                    .set_command_header(
+                        rby1_sdk.CommandHeaderBuilder().set_control_hold_time(0.5)
                     )
+                    .set_minimum_time(0.05)
+                    .set_position(left_positions)
                 )
             )
+        )
+
+        try:
             self.stream.send_command(rc)
+        except RuntimeError as error:
+            if "expired" in str(error).lower():
+                self.get_logger().warning(
+                    "Command stream expired. Recreating stream and retrying once."
+                )
+                try:
+                    self.stream = self.robot.create_command_stream()
+                    self.stream.send_command(rc)
+                except Exception as retry_error:
+                    self.get_logger().warning(
+                        f"Failed after recreating command stream: {retry_error}"
+                    )
+            else:
+                self.get_logger().warning(f"Failed to send command to robot: {error}")
         except Exception as error:
             self.get_logger().warning(f"Failed to send command to robot: {error}")
 
@@ -520,6 +721,9 @@ def main():
         pass
     finally:
         try:
+            if hasattr(node, "gripper_bus") and node.gripper_bus is not None:
+                node.gripper_bus.close_port()
+                
             if hasattr(node, "robot"):
                 node.get_logger().info("Disconnecting from RBY1 robot...")
                 node.robot.disconnect()
