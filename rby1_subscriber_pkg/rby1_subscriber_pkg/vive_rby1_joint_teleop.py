@@ -55,7 +55,8 @@ class TeleopPosePublisher(Node):
 
         self.declare_parameter("robot_address", "192.168.0.101:50051")
         self.robot_address = (
-            self.get_parameter("robot_address").get_parameter_value().string_value
+            self.get_parameter(
+                "robot_address").get_parameter_value().string_value
         )
 
         self.test_mode = False
@@ -101,19 +102,24 @@ class TeleopPosePublisher(Node):
         self._load_rby1_model()
 
         # 3. ROS 구독자 설정
-        self.create_subscription(Bool, "/enable_teleop", self.cb_enable_teleop, 10)
-        self.create_subscription(Pose, "/vive_tracker_1/pose", self.cb_set1_pose, 10)
-        self.create_subscription(Pose, "/vive_tracker_2/pose", self.cb_set2_pose, 10)
+        self.create_subscription(
+            Bool, "/enable_teleop", self.cb_enable_teleop, 10)
+        self.create_subscription(
+            Pose, "/vive_tracker_1/pose", self.cb_set1_pose, 10)
+        self.create_subscription(
+            Pose, "/vive_tracker_2/pose", self.cb_set2_pose, 10)
 
         # 4. 제어 루프 타이머 (100Hz)
         self.publish_timer = self.create_timer(0.01, self.control_loop)
 
     def _init_robot(self):
-        self.get_logger().info(f"Connecting to RBY1 at {self.robot_address}...")
+        self.get_logger().info(
+            f"Connecting to RBY1 at {self.robot_address}...")
         self.robot = rby1_sdk.create_robot_a(self.robot_address)
         self.robot.connect()
 
-        self.robot.set_parameter("joint_position_command.cutoff_frequency", "5")
+        self.robot.set_parameter(
+            "joint_position_command.cutoff_frequency", "5")
         self.robot.set_parameter("default.acceleration_limit_scaling", "0.8")
 
         self.robot.power_on(".*")
@@ -238,7 +244,8 @@ class TeleopPosePublisher(Node):
                 self.base_ee_right = self._get_current_ee_frame(
                     self.right_chain, self.right_fk, self.right_joint_names
                 )
-            left_target = self._compose_target_frame(self.base_ee_left, self.test_pose)
+            left_target = self._compose_target_frame(
+                self.base_ee_left, self.test_pose)
             right_target = self._compose_target_frame(
                 self.base_ee_right, self.test_pose
             )
@@ -261,13 +268,15 @@ class TeleopPosePublisher(Node):
         dy = target.position.y - ref.position.y
         dz = target.position.z - ref.position.z
         o_R_ee = R.from_quat(
-            [ref.orientation.x, ref.orientation.y, ref.orientation.z, ref.orientation.w]
+            [ref.orientation.x, ref.orientation.y,
+                ref.orientation.z, ref.orientation.w]
         ).as_matrix()
         trans_vec = np.array([dx, dy, dz])
         trans_vec_ee = np.dot(np.transpose(o_R_ee), trans_vec)
 
         q1 = np.array(
-            [ref.orientation.x, ref.orientation.y, ref.orientation.z, ref.orientation.w]
+            [ref.orientation.x, ref.orientation.y,
+                ref.orientation.z, ref.orientation.w]
         )
         q2 = np.array(
             [
@@ -303,7 +312,8 @@ class TeleopPosePublisher(Node):
 
         urdf_path = os.path.join(share_dir, "urdf", "rby1.urdf.xacro")
         if not os.path.exists(urdf_path):
-            self.get_logger().error(f"rby1.urdf.xacro not found at {urdf_path}")
+            self.get_logger().error(
+                f"rby1.urdf.xacro not found at {urdf_path}")
             return
 
         try:
@@ -338,7 +348,8 @@ class TeleopPosePublisher(Node):
 
         try:
             self.left_chain = tree.getChain(self.base_link, self.left_ee_link)
-            self.right_chain = tree.getChain(self.base_link, self.right_ee_link)
+            self.right_chain = tree.getChain(
+                self.base_link, self.right_ee_link)
         except Exception:
             return
 
@@ -422,7 +433,8 @@ class TeleopPosePublisher(Node):
         )
         rel_frame = PyKDL.Frame(
             kdl_rot,
-            PyKDL.Vector(rel_pose.position.x, rel_pose.position.y, rel_pose.position.z),
+            PyKDL.Vector(rel_pose.position.x, rel_pose.position.y,
+                         rel_pose.position.z),
         )
         return base_frame * rel_frame
 
@@ -458,15 +470,18 @@ class TeleopPosePublisher(Node):
 
         # 계산된 타겟이 없으면 현재 상태 유지
         if left_positions is None:
-            left_positions = self._get_current_joint_positions(self.left_joint_names)
+            left_positions = self._get_current_joint_positions(
+                self.left_joint_names)
         if right_positions is None:
-            right_positions = self._get_current_joint_positions(self.right_joint_names)
+            right_positions = self._get_current_joint_positions(
+                self.right_joint_names)
 
         if left_positions is None or right_positions is None:
             return
 
         if self.torso_hold_positions is None:
-            torso_positions = self._get_current_joint_positions(self.torso_joint_names)
+            torso_positions = self._get_current_joint_positions(
+                self.torso_joint_names)
             if torso_positions is not None:
                 self.torso_hold_positions = torso_positions
         else:
@@ -507,7 +522,8 @@ class TeleopPosePublisher(Node):
             )
             self.stream.send_command(rc)
         except Exception as error:
-            self.get_logger().warning(f"Failed to send command to robot: {error}")
+            self.get_logger().warning(
+                f"Failed to send command to robot: {error}")
 
 
 def main():
