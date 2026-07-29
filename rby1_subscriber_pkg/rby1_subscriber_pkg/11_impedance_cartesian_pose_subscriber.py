@@ -23,7 +23,7 @@ ANGULAR_VELOCITY_LIMIT = 1.0
 ACCELERATION_LIMIT_SCALING = 1.0
 
 # Vive Tracker Safety Parameters
-MAX_LINEAR_DELTA = 0.05       # 5cm
+MAX_LINEAR_DELTA = 0.05     # 5cm
 MAX_ANGULAR_DELTA = 0.8      # 45도
 
 
