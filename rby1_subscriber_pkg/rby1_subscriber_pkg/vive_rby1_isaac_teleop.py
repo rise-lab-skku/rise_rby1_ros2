@@ -53,8 +53,11 @@ class TeleopPosePublisher(Node):
         self.right_joint_names = []
         self.left_fk = None
         self.right_fk = None
+        self.left_ik_vel = None
+        self.right_ik_vel = None
         self.left_ik = None
         self.right_ik = None
+        self.joint_position_limits = {}
         self.model_loaded = False
         self.torso_joint_names = [
             "torso_0",
@@ -282,10 +285,6 @@ class TeleopPosePublisher(Node):
             self.get_logger().error(f"rby1.urdf.xacro not found at {urdf_path}")
             return
 
-        if not os.path.exists(urdf_path):
-            self.get_logger().error(f"rby1.urdf.xacro not found at {urdf_path}")
-            return
-
         try:
             robot_xml = xacro.process_file(urdf_path).toxml()
             robot = URDF.from_xml_string(robot_xml)
@@ -350,8 +349,38 @@ class TeleopPosePublisher(Node):
             return
         self.left_fk = PyKDL.ChainFkSolverPos_recursive(self.left_chain)
         self.right_fk = PyKDL.ChainFkSolverPos_recursive(self.right_chain)
-        self.left_ik = PyKDL.ChainIkSolverPos_LMA(self.left_chain)
-        self.right_ik = PyKDL.ChainIkSolverPos_LMA(self.right_chain)
+
+        try:
+            left_q_min, left_q_max = self._get_chain_joint_limits(
+                robot, self.left_joint_names
+            )
+            right_q_min, right_q_max = self._get_chain_joint_limits(
+                robot, self.right_joint_names
+            )
+        except ValueError as exc:
+            self.get_logger().error(f"Failed to load IK joint limits: {exc}")
+            return
+
+        self.left_ik_vel = PyKDL.ChainIkSolverVel_pinv(self.left_chain)
+        self.right_ik_vel = PyKDL.ChainIkSolverVel_pinv(self.right_chain)
+        self.left_ik = PyKDL.ChainIkSolverPos_NR_JL(
+            self.left_chain,
+            left_q_min,
+            left_q_max,
+            self.left_fk,
+            self.left_ik_vel,
+            200,
+            1e-6,
+        )
+        self.right_ik = PyKDL.ChainIkSolverPos_NR_JL(
+            self.right_chain,
+            right_q_min,
+            right_q_max,
+            self.right_fk,
+            self.right_ik_vel,
+            200,
+            1e-6,
+        )
         self.model_loaded = True
 
         self.get_logger().info(
@@ -366,6 +395,39 @@ class TeleopPosePublisher(Node):
             if joint.getType() != PyKDL.Joint.Fixed:
                 names.append(joint.getName())
         return names
+
+    def _get_chain_joint_limits(self, robot: URDF, joint_names: list):
+        q_min = PyKDL.JntArray(len(joint_names))
+        q_max = PyKDL.JntArray(len(joint_names))
+
+        for i, name in enumerate(joint_names):
+            urdf_joint = robot.joint_map.get(name)
+            if urdf_joint is None:
+                raise ValueError(f"joint '{name}' is missing from the URDF")
+            if (
+                urdf_joint.limit is None
+                or urdf_joint.limit.lower is None
+                or urdf_joint.limit.upper is None
+            ):
+                raise ValueError(
+                    f"joint '{name}' has no finite position limit"
+                )
+
+            lower = float(urdf_joint.limit.lower)
+            upper = float(urdf_joint.limit.upper)
+            valid_limits = (
+                np.isfinite(lower) and np.isfinite(upper) and lower <= upper
+            )
+            if not valid_limits:
+                raise ValueError(
+                    f"joint '{name}' has invalid limits [{lower}, {upper}]"
+                )
+
+            q_min[i] = lower
+            q_max[i] = upper
+            self.joint_position_limits[name] = (lower, upper)
+
+        return q_min, q_max
 
     def _get_current_joint_positions(self, joint_names: list) -> np.ndarray:
         if self.latest_joint_state is None:
@@ -435,7 +497,7 @@ class TeleopPosePublisher(Node):
     def _solve_ik(
         self,
         chain: PyKDL.Chain,
-        ik_solver: PyKDL.ChainIkSolverPos_LMA,
+        ik_solver: PyKDL.ChainIkSolverPos_NR_JL,
         joint_names: list,
         target_frame: PyKDL.Frame,
     ):
@@ -451,7 +513,8 @@ class TeleopPosePublisher(Node):
 
         q_seed = PyKDL.JntArray(len(joint_names))
         for i, pos in enumerate(current_positions):
-            q_seed[i] = pos
+            lower, upper = self.joint_position_limits[joint_names[i]]
+            q_seed[i] = min(max(float(pos), lower), upper)
 
         q_out = PyKDL.JntArray(len(joint_names))
         ret = ik_solver.CartToJnt(q_seed, target_frame, q_out)
@@ -459,7 +522,11 @@ class TeleopPosePublisher(Node):
             self.get_logger().warn(f"IK failed with code {ret}")
             return None
 
-        return [q_out[i] for i in range(q_out.rows())]
+        positions = []
+        for i, name in enumerate(joint_names):
+            lower, upper = self.joint_position_limits[name]
+            positions.append(min(max(float(q_out[i]), lower), upper))
+        return positions
 
     def _publish_joint_targets(self) -> None:
         if self.latest_joint_state is None:

@@ -714,7 +714,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.2805"/>
         <axis xyz="1 0 0"/>
         <limit effort="270.0" acceleration="5.0" velocity="2.09439510"
-               lower="-0.261799388" upper="0.261799388"/>
+               lower="-0.349065850" upper="0.349065850"/>
     </joint>
 
     <joint name="torso_1" type="revolute">
@@ -723,7 +723,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="0 1 0"/>
         <limit effort="270.0" acceleration="5.0" velocity="2.09439510"
-               lower="-0.523598776" upper="1.570796327"/>
+               lower="-1.047197551" upper="1.221730476"/>
     </joint>
 
     <joint name="torso_2" type="revolute">
@@ -731,8 +731,8 @@
         <child link="link_torso_2"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.350"/>
         <axis xyz="0 1 0"/>
-        <limit effort="270.0" acceleration="5.0" velocity="2.09439510"
-               lower="-2.617993878" upper="1.570796327"/>
+        <limit effort="270.0" acceleration="5.0" velocity="3.141592654"
+               lower="-2.443460953" upper="0.785398163"/>
     </joint>
 
     <joint name="torso_3" type="revolute">
@@ -759,7 +759,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.309426548461"/>
         <axis xyz="0 0 1"/>
         <limit effort="120.0" acceleration="5.0" velocity="3.141592654"
-               lower="-2.35619449" upper="2.35619449"/>
+               lower="-1.570796327" upper="1.570796327"/>
     </joint>
 
     <!-- Right arm joints -->
@@ -769,7 +769,7 @@
         <origin rpy="-0.349065850  0.0 0.0" xyz="0.0 -0.220 0.080073451539"/>
         <axis xyz="0 1 0"/>
         <limit effort="70.0" acceleration="10.0" velocity="3.141592654"
-               lower="-3.141592654" upper="3.141592654"/>
+               lower="-2.356194490" upper="2.356194490"/>
     </joint>
 
     <joint name="right_arm_1" type="revolute">
@@ -778,7 +778,7 @@
         <origin rpy="0.349065850 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="1 0 0"/>
         <limit effort="70.0" acceleration="10.0" velocity="3.141592654"
-               lower="-3.141592654" upper="0.017453293"/>
+               lower="-3.141592654" upper="0.0"/>
     </joint>
 
     <joint name="right_arm_2" type="revolute">
@@ -787,7 +787,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="0 0 1"/>
         <limit effort="70.0" acceleration="10.0" velocity="3.141592654"
-               lower="-3.141592654" upper="3.141592654"/>
+               lower="-2.094395102" upper="2.094395102"/>
     </joint>
 
     <joint name="right_arm_3" type="revolute">
@@ -796,7 +796,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.031 0.0 -0.276"/>
         <axis xyz="0 1 0"/>
         <limit effort="40.0" acceleration="10.0" velocity="3.141592654"
-               lower="-2.617993878" upper="0.017453293"/>
+               lower="-2.617993878" upper="0.0"/>
     </joint>
 
     <joint name="right_arm_4" type="revolute">
@@ -805,7 +805,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="-0.031 0.0 -0.256"/>
         <axis xyz="0 0 1"/>
         <limit effort="10.0" acceleration="10.0" velocity="6.283185308"
-               lower="-3.141592654" upper="3.141592654"/>
+               lower="-6.283185307" upper="6.283185307"/>
     </joint>
 
     <joint name="right_arm_5" type="revolute">
@@ -814,7 +814,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="0 1 0"/>
         <limit effort="10.0" acceleration="10.0" velocity="6.283185308"
-               lower="-1.570796327" upper="1.919862177"/>
+               lower="-1.745329252" upper="2.007128640"/>
     </joint>
 
     <joint name="right_arm_6" type="revolute">
@@ -822,8 +822,8 @@
         <child link="link_right_arm_6"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="0 0 1"/>
-        <limit effort="8.0" acceleration="10.0" velocity="2.094395102"
-               lower="-2.792526803" upper="2.792526803"/>
+        <limit effort="8.0" acceleration="10.0" velocity="6.283185308"
+               lower="-2.967059728" upper="2.967059728"/>
     </joint>
 
     <!-- Left arm joints -->
@@ -833,7 +833,7 @@
         <origin rpy="0.349065850  0.0 0.0" xyz="0.0 0.220 0.080073452"/>
         <axis xyz="0 1 0"/>
         <limit effort="70.0" acceleration="10.0" velocity="3.141592654"
-               lower="-3.141592654" upper="3.141592654"/>
+               lower="-2.356194490" upper="2.356194490"/>
     </joint>
 
     <joint name="left_arm_1" type="revolute">
@@ -842,7 +842,7 @@
         <origin rpy="-0.349065850 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="1 0 0"/>
         <limit effort="70.0" acceleration="10.0" velocity="3.141592654"
-               lower="-0.017453293" upper="3.141592654"/>
+               lower="0.0" upper="3.141592654"/>
     </joint>
 
     <joint name="left_arm_2" type="revolute">
@@ -851,7 +851,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="0 0 1"/>
         <limit effort="70.0" acceleration="10.0" velocity="3.141592654"
-               lower="-3.141592654" upper="3.141592654"/>
+               lower="-2.094395102" upper="2.094395102"/>
     </joint>
 
     <joint name="left_arm_3" type="revolute">
@@ -860,7 +860,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.031 0.0 -0.276"/>
         <axis xyz="0 1 0"/>
         <limit effort="40.0" acceleration="10.0" velocity="3.141592654"
-               lower="-2.617993878" upper="0.017453293"/>
+               lower="-2.617993878" upper="0.0"/>
     </joint>
 
     <joint name="left_arm_4" type="revolute">
@@ -869,7 +869,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="-0.031 0.0 -0.256"/>
         <axis xyz="0 0 1"/>
         <limit effort="10.0" acceleration="10.0" velocity="6.283185308"
-               lower="-3.141592654" upper="3.141592654"/>
+               lower="-6.283185307" upper="6.283185307"/>
     </joint>
 
     <joint name="left_arm_5" type="revolute">
@@ -878,7 +878,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="0 1 0"/>
         <limit effort="10.0" acceleration="10.0" velocity="6.283185308"
-               lower="-1.570796327" upper="1.919862177"/>
+               lower="-1.745329252" upper="2.007128640"/>
     </joint>
 
     <joint name="left_arm_6" type="revolute">
@@ -886,8 +886,8 @@
         <child link="link_left_arm_6"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
         <axis xyz="0 0 1"/>
-        <limit effort="8.0" acceleration="10.0" velocity="2.094395102"
-               lower="-2.792526803" upper="2.792526803"/>
+        <limit effort="8.0" acceleration="10.0" velocity="6.283185308"
+               lower="-2.967059728" upper="2.967059728"/>
     </joint>
 
     <joint name="vive_tracker_right_joint" type="fixed">
