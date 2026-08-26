@@ -9,8 +9,13 @@ find_package(ament_cmake REQUIRED)
 find_package(xacro REQUIRED)
 
 install(
-  DIRECTORY urdf meshes initial_position rviz launch
+  DIRECTORY urdf meshes initial_position rviz launch usd
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(
+  PROGRAMS scripts/convert_urdf_to_usd.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 #install(
@@ -20,4 +25,3 @@ install(
 
 
 ament_package()
- 

@@ -1053,7 +1053,7 @@
         <axis xyz="0 0 0"/>
     </joint>
 
-    <joint name="gripper_finger_r1_joint" type="prismatic" in_model_type="fixed">
+    <joint name="gripper_finger_r1_joint" type="prismatic">
         <parent link="gripper_right"/>
         <child link="gripper_finger_r1"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.075" />
@@ -1061,13 +1061,13 @@
         <limit effort="1000" velocity="0.05" lower="-0.05" upper="0" />
     </joint>
 
-        <joint name="gripper_finger_r2_joint" type="prismatic" in_model_type="fixed">
+    <joint name="gripper_finger_r2_joint" type="prismatic">
         <parent link="gripper_right"/>
         <child link="gripper_finger_r2"/>
         <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.075" />
         <axis xyz="1 0 0" />
         <limit effort="1000" velocity="0.05" lower="0" upper="0.05" />
-        <mimic joint="gripper_finger_r1_joint" multiplier="1.0" offset="0.0"/>
+        <mimic joint="gripper_finger_r1_joint" multiplier="-1.0" offset="0.0"/>
     </joint>
 
     <!-- <joint name="tool_left" type="fixed">
@@ -1091,7 +1091,7 @@
         <axis xyz="0 0 0"/>
     </joint>
 
-    <joint name="gripper_finger_l1_joint" type="prismatic" in_model_type="fixed">
+    <joint name="gripper_finger_l1_joint" type="prismatic">
         <parent link="gripper_left"/>
         <child link="gripper_finger_l1"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.075" />
@@ -1099,13 +1099,13 @@
         <limit effort="1000" velocity="0.05" lower="-0.05" upper="0" />
     </joint>
 
-    <joint name="gripper_finger_l2_joint" type="prismatic" in_model_type="fixed">
+    <joint name="gripper_finger_l2_joint" type="prismatic">
         <parent link="gripper_left"/>
         <child link="gripper_finger_l2"/>
         <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.075" />
         <axis xyz="1 0 0" />
         <limit effort="1000" velocity="0.05" lower="0" upper="0.05" />
-        <mimic joint="gripper_finger_l1_joint" multiplier="1.0" offset="0.0"/>
+        <mimic joint="gripper_finger_l1_joint" multiplier="-1.0" offset="0.0"/>
     </joint>
 
     <joint name="head_base" type="fixed">
