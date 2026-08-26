@@ -1,27 +1,47 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, Command, PathJoinSubstitution
 from launch.actions import DeclareLaunchArgument
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
+
 
 def generate_launch_description():
-    use_sim_time = LaunchConfiguration("use_sim_time")
 
-    # Path to the URDF file
-    urdf_file_path = os.path.join(
-        get_package_share_directory("rby1_description"), "urdf", "rby1.urdf"
+    # declare launch arguments
+    arg_model_name = DeclareLaunchArgument(
+        "model",
+        default_value="a",
+        description="Model variant appended to 'rby1' (e.g., a or m)",
     )
-
-    # Read the URDF file
-    with open(urdf_file_path, "r") as urdf_file:
-        robot_description = urdf_file.read()
-
-    # Parameters to pass to the robot_state_publisher
-    params = {"robot_description": robot_description, "use_sim_time": use_sim_time}
+    arg_model_version = DeclareLaunchArgument(
+        "version",
+        default_value="1_2",
+        description="Model version used in the URDF filename (e.g., 1_0)",
+    )
+    # set urdf path
+    robot_description = Command(
+        [
+            "cat ",
+            FindPackageShare("rby1_description"),
+            "/urdf/rby1",
+            LaunchConfiguration("model"),
+            "/model_v",
+            LaunchConfiguration("version"),
+            ".urdf",
+        ]
+    )
+    # set parameters
+    params = {
+        "robot_description": robot_description,
+        "use_sim_time": LaunchConfiguration("use_sim_time"),
+    }
 
     return LaunchDescription(
         [
+            arg_model_name,
+            arg_model_version,
             DeclareLaunchArgument(
                 "use_sim_time", default_value="false", description="Use simulated time"
             ),
@@ -42,7 +62,14 @@ def generate_launch_description():
                 executable="rviz2",
                 name="rviz2",
                 output="screen",
-                arguments=["-d", os.path.join(get_package_share_directory("rby1_description"), "rviz", "robot.rviz")],
+                arguments=[
+                    "-d",
+                    os.path.join(
+                        get_package_share_directory("rby1_description"),
+                        "rviz",
+                        "robot.rviz",
+                    ),
+                ],
             ),
         ]
     )

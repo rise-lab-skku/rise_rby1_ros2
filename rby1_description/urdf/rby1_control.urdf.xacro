@@ -1,0 +1,179 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="rby1">
+  
+  <xacro:arg name="model" default="a" />
+  <xacro:arg name="version" default="1.0" />
+  <xacro:arg name="robot_ip" default="127.0.0.1:50051" />
+  <xacro:arg name="collision_check_enable" default="false" />
+  <xacro:arg name="collision_threshold" default="0.01" />
+
+  <!-- Include the base robot URDF -->
+  <xacro:include filename="$(find rby1_description)/urdf/rby1$(arg model)/model_v$(arg version).urdf" />
+
+  <!-- ros2_control configuration -->
+  <ros2_control name="RBY1System" type="system">
+    <hardware>
+      <plugin>rby1_hardware/RBY1SystemHardware</plugin>
+      <param name="robot_ip">$(arg robot_ip)</param>
+      <param name="model">$(arg model)</param>
+      <param name="collision_check_enable">$(arg collision_check_enable)</param>
+      <param name="collision_threshold">$(arg collision_threshold)</param>
+    </hardware>
+    
+    <!-- Torso Joints -->
+    <joint name="torso_0">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="torso_1">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="torso_2">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="torso_3">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="torso_4">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="torso_5">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+
+    <!-- Right Arm Joints -->
+    <joint name="right_arm_0">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="right_arm_1">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="right_arm_2">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="right_arm_3">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="right_arm_4">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="right_arm_5">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="right_arm_6">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+
+    <!-- Left Arm Joints -->
+    <joint name="left_arm_0">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="left_arm_1">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="left_arm_2">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="left_arm_3">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="left_arm_4">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="left_arm_5">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="left_arm_6">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+
+    <!-- Head Joints -->
+    <joint name="head_0">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+    <joint name="head_1">
+      <command_interface name="position" />
+      <state_interface name="position" />
+      <state_interface name="velocity" />
+    </joint>
+
+    <!-- Mobility (Wheels) - Conditional depending on model type -->
+    <xacro:if value="${'m' in '$(arg model)' or 'M' in '$(arg model)'}">
+      <joint name="front_right_wheel">
+        <command_interface name="position" />
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+      </joint>
+      <joint name="front_left_wheel">
+        <command_interface name="position" />
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+      </joint>
+      <joint name="back_right_wheel">
+        <command_interface name="position" />
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+      </joint>
+      <joint name="back_left_wheel">
+        <command_interface name="position" />
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+      </joint>
+    </xacro:if>
+
+    <xacro:if value="${'a' in '$(arg model)' or 'A' in '$(arg model)'}">
+      <joint name="right_wheel">
+        <command_interface name="position" />
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+      </joint>
+      <joint name="left_wheel">
+        <command_interface name="position" />
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+      </joint>
+    </xacro:if>
+  </ros2_control>
+
+</robot>

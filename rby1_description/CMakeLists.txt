@@ -9,14 +9,15 @@ find_package(ament_cmake REQUIRED)
 find_package(xacro REQUIRED)
 
 install(
-  DIRECTORY urdf meshes launch rviz
+  DIRECTORY urdf meshes initial_position rviz launch
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(
-  FILES urdf/initial_positions.yaml
-  DESTINATION share/${PROJECT_NAME}/urdf
-)
+#install(
+#  FILES initial_position/initial_positions.yaml
+#  DESTINATION share/${PROJECT_NAME}/initial_position
+#)
 
 
 ament_package()
+ 
