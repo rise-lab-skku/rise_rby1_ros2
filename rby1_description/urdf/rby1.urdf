@@ -916,7 +916,7 @@
     </joint>
 
     <!-- 그리퍼 -->
-    <joint name="gripper_finger_r1" type="fixed">
+    <joint name="gripper_finger_r1" type="prismatic">
         <parent link="ee_right"/>
         <child link="ee_finger_r1"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.073"/>
@@ -924,12 +924,13 @@
         <limit effort="1000" velocity="0.05" lower="-0.05" upper="0"/>
     </joint>
 
-    <joint name="gripper_finger_r2" type="fixed">
+    <joint name="gripper_finger_r2" type="prismatic">
         <parent link="ee_right"/>
         <child link="ee_finger_r2"/>
         <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.073"/>
         <axis xyz="1 0 0"/>
         <limit effort="1000" velocity="0.05" lower="0" upper="0.05"/>
+        <mimic joint="gripper_finger_r1" multiplier="-1" offset="0"/>
     </joint>
 
     <!-- Tool / Sensor joints (Left) -->
@@ -945,7 +946,7 @@
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.0461"/>
     </joint>
 
-    <joint name="gripper_finger_l1" type="fixed">
+    <joint name="gripper_finger_l1" type="prismatic">
         <parent link="ee_left"/>
         <child link="ee_finger_l1"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.073"/>
@@ -953,12 +954,13 @@
         <limit effort="1000" velocity="0.05" lower="-0.05" upper="0"/>
     </joint>
 
-    <joint name="gripper_finger_l2" type="fixed">
+    <joint name="gripper_finger_l2" type="prismatic">
         <parent link="ee_left"/>
         <child link="ee_finger_l2"/>
         <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.073"/>
         <axis xyz="1 0 0"/>
         <limit effort="1000" velocity="0.05" lower="0" upper="0.05"/>
+        <mimic joint="gripper_finger_l1" multiplier="-1" offset="0"/>
     </joint>
 
     <!-- Head joints -->
