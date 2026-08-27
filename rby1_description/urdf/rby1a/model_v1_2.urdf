@@ -516,15 +516,18 @@
         </inertial>
 
         <visual>
+            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/EE_BODY.dae" />
+                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
+                    scale="0.001 0.001 0.001" />
             </geometry>
         </visual>
 
         <collision>
-            <origin xyz="0 0 0" rpy="0 0 0" />
+            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/EE_BODY.dae" />
+                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
+                    scale="0.001 0.001 0.001" />
             </geometry>
         </collision>
     </link>
@@ -584,15 +587,18 @@
         </inertial>
 
         <visual>
+            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/EE_BODY.dae" />
+                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
+                    scale="0.001 0.001 0.001" />
             </geometry>
         </visual>
 
         <collision>
-            <origin xyz="0 0 0" rpy="0 0 0" />
+            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/EE_BODY.dae" />
+                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
+                    scale="0.001 0.001 0.001" />
             </geometry>
         </collision>
     </link>
@@ -1049,14 +1055,14 @@
     <joint name="gripper_right_joint" type="fixed">
         <parent link="ee_right"/>
         <child link="gripper_right"/>
-        <origin rpy="0 0.0 0.0" xyz="0.0 0.0 0.012"/>
+        <origin rpy="0 0.0 0.0" xyz="0.0 0.0 -0.04"/>
         <axis xyz="0 0 0"/>
     </joint>
 
     <joint name="gripper_finger_r1_joint" type="prismatic">
         <parent link="gripper_right"/>
         <child link="gripper_finger_r1"/>
-        <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.075" />
+        <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.022" />
         <axis xyz="-1 0 0" />
         <limit effort="1000" velocity="0.05" lower="-0.05" upper="0" />
     </joint>
@@ -1064,7 +1070,7 @@
     <joint name="gripper_finger_r2_joint" type="prismatic">
         <parent link="gripper_right"/>
         <child link="gripper_finger_r2"/>
-        <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.075" />
+        <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.022" />
         <axis xyz="1 0 0" />
         <limit effort="1000" velocity="0.05" lower="0" upper="0.05" />
         <mimic joint="gripper_finger_r1_joint" multiplier="-1.0" offset="0.0"/>
@@ -1087,14 +1093,14 @@
     <joint name="gripper_left_joint" type="fixed">
         <parent link="ee_left"/>
         <child link="gripper_left"/>
-        <origin rpy="0 0.0 0.0" xyz="0.0 0.0 0.012"/>
+        <origin rpy="0 0.0 3.1415926535" xyz="0.0 0.0 -0.04"/>
         <axis xyz="0 0 0"/>
     </joint>
 
     <joint name="gripper_finger_l1_joint" type="prismatic">
         <parent link="gripper_left"/>
         <child link="gripper_finger_l1"/>
-        <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.075" />
+        <origin rpy="0.0 0.0 0.0" xyz="0.003 0.0 -0.022" />
         <axis xyz="-1 0 0" />
         <limit effort="1000" velocity="0.05" lower="-0.05" upper="0" />
     </joint>
@@ -1102,7 +1108,7 @@
     <joint name="gripper_finger_l2_joint" type="prismatic">
         <parent link="gripper_left"/>
         <child link="gripper_finger_l2"/>
-        <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.075" />
+        <origin rpy="0.0 0.0 3.1415926535" xyz="-0.003 0.0 -0.022" />
         <axis xyz="1 0 0" />
         <limit effort="1000" velocity="0.05" lower="0" upper="0.05" />
         <mimic joint="gripper_finger_l1_joint" multiplier="-1.0" offset="0.0"/>
