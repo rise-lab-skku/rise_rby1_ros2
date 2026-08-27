@@ -245,6 +245,8 @@ def validate_usd(usd_path: Path) -> tuple[int, int, int]:
     stage = Usd.Stage.Open(str(usd_path))
     if stage is None:
         raise RuntimeError(f"Failed to open generated USD: {usd_path}")
+    if not stage.GetDefaultPrim().IsValid():
+        raise RuntimeError("Generated USD has no default prim")
 
     prims = list(stage.Traverse())
     joints = [
@@ -310,6 +312,32 @@ def validate_usd(usd_path: Path) -> tuple[int, int, int]:
     return len(prims), len(joints), len(articulations)
 
 
+def ensure_default_prim(usd_path: Path) -> str:
+    """Author the generated robot root as the USD default prim."""
+
+    from pxr import Usd
+
+    stage = Usd.Stage.Open(str(usd_path))
+    if stage is None:
+        raise RuntimeError(f"Failed to open generated USD: {usd_path}")
+
+    default_prim = stage.GetDefaultPrim()
+    if not default_prim.IsValid():
+        root_prims = [prim for prim in stage.GetPseudoRoot().GetChildren() if prim.IsActive()]
+        if len(root_prims) != 1:
+            paths = [str(prim.GetPath()) for prim in root_prims]
+            raise RuntimeError(
+                "Cannot choose a unique USD default prim from root prims: "
+                f"{paths}"
+            )
+        default_prim = root_prims[0]
+        stage.SetDefaultPrim(default_prim)
+        if not stage.GetRootLayer().Save():
+            raise RuntimeError(f"Failed to save USD default prim: {usd_path}")
+
+    return str(default_prim.GetPath())
+
+
 def main() -> None:
     require_isaaclab_environment()
     from isaaclab.app import AppLauncher
@@ -358,8 +386,10 @@ def main() -> None:
 
         if not usd_path.is_file():
             raise RuntimeError(f"Importer did not create the expected USD: {usd_path}")
+        default_prim_path = ensure_default_prim(usd_path)
         prim_count, joint_count, articulation_count = validate_usd(usd_path)
         print(f"Created USD: {usd_path}", flush=True)
+        print(f"Default prim: {default_prim_path}", flush=True)
         print(f"Articulation root: {articulation_root}", flush=True)
         print(
             "Validated stage: "

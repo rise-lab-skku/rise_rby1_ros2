@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import math
+import sys
+import traceback
 from pathlib import Path
 
 import yaml
@@ -35,7 +37,7 @@ simulation_app = app_launcher.app
 
 import isaaclab.sim as sim_utils
 import omni.usd
-from pxr import PhysxSchema, Usd, UsdPhysics
+from pxr import PhysxSchema, Sdf, Usd, UsdGeom, UsdPhysics
 
 
 def load_config(path: Path) -> tuple[Path, dict]:
@@ -60,6 +62,92 @@ def is_mimic_joint(prim: Usd.Prim) -> bool:
         schema.startswith("PhysxMimicJointAPI")
         for schema in prim.GetAppliedSchemas()
     )
+
+
+def float_tuple(values: list | tuple, length: int, name: str) -> tuple[float, ...]:
+    """Validate and convert a YAML vector to a tuple of floats."""
+
+    if not isinstance(values, (list, tuple)) or len(values) != length:
+        raise ValueError(f"{name} must contain exactly {length} values: {values}")
+    return tuple(float(value) for value in values)
+
+
+def spawn_scene(config: dict) -> tuple[bool, bool]:
+    """Spawn the optional ground plane and static table cuboid."""
+
+    scene_config = config.get("scene", {})
+    ground_config = scene_config.get("ground", {})
+    table_config = scene_config.get("table", {})
+    ground_spawned = bool(ground_config.get("enabled", True))
+    table_spawned = bool(table_config.get("enabled", True))
+
+    if ground_spawned:
+        ground_cfg = sim_utils.GroundPlaneCfg(
+            size=float_tuple(
+                ground_config.get("size", [10.0, 10.0]), 2, "scene.ground.size"
+            ),
+            color=float_tuple(
+                ground_config.get("color", [0.25, 0.25, 0.25]),
+                3,
+                "scene.ground.color",
+            ),
+        )
+        ground_cfg.func(
+            str(ground_config.get("prim_path", "/World/ground")), ground_cfg
+        )
+
+    if table_spawned:
+        table_cfg = sim_utils.CuboidCfg(
+            size=float_tuple(
+                table_config.get("size", [0.6, 1.2, 0.75]),
+                3,
+                "scene.table.size",
+            ),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(
+                diffuse_color=float_tuple(
+                    table_config.get("color", [0.45, 0.25, 0.10]),
+                    3,
+                    "scene.table.color",
+                )
+            ),
+        )
+        table_cfg.func(
+            str(table_config.get("prim_path", "/World/table")),
+            table_cfg,
+            translation=float_tuple(
+                table_config.get("position", [0.8, 0.0, 0.375]),
+                3,
+                "scene.table.position",
+            ),
+        )
+
+    return ground_spawned, table_spawned
+
+
+def spawn_robot_reference(
+    stage: Usd.Stage, robot_path: str, usd_path: Path, config: dict
+) -> Usd.Prim:
+    """Reference an explicit robot prim without requiring a USD default prim."""
+
+    source_prim_path = str(config.get("usd_prim_path", "/RBY1_A_v1_2"))
+    source_stage = Usd.Stage.Open(str(usd_path))
+    if source_stage is None:
+        raise RuntimeError(f"Failed to open robot USD: {usd_path}")
+    if not source_stage.GetPrimAtPath(source_prim_path).IsValid():
+        raise ValueError(
+            f"Robot source prim does not exist in USD: {source_prim_path}"
+        )
+
+    robot = UsdGeom.Xform.Define(stage, robot_path).GetPrim()
+    reference = Sdf.Reference(
+        assetPath=str(usd_path), primPath=Sdf.Path(source_prim_path)
+    )
+    if not robot.GetReferences().AddReference(reference):
+        raise RuntimeError(
+            f"Failed to reference {usd_path}<{source_prim_path}> at {robot_path}"
+        )
+    return robot
 
 
 def configure_joints(stage: Usd.Stage, robot_path: str, config: dict) -> tuple[int, int]:
@@ -142,12 +230,20 @@ def main() -> None:
     )
     stage = omni.usd.get_context().get_stage()
 
+    ground_spawned, table_spawned = spawn_scene(config)
     robot_path = str(config.get("prim_path", "/World/rby1"))
-    spawn_cfg = sim_utils.UsdFileCfg(usd_path=str(usd_path))
-    spawn_cfg.func(robot_path, spawn_cfg)
+    robot = spawn_robot_reference(stage, robot_path, usd_path, config)
+    camera_paths = [
+        str(prim.GetPath())
+        for prim in Usd.PrimRange(robot)
+        if prim.IsA(UsdGeom.Camera)
+    ]
 
     initialized, configured = configure_joints(stage, robot_path, config)
     print(f"[INFO] Spawned robot: {robot_path}", flush=True)
+    print(f"[INFO] Spawned ground: {ground_spawned}", flush=True)
+    print(f"[INFO] Spawned table: {table_spawned}", flush=True)
+    print(f"[INFO] Spawned cameras: {camera_paths}", flush=True)
     print(f"[INFO] USD: {usd_path}", flush=True)
     print(f"[INFO] Authored initial joint states: {initialized}", flush=True)
     print(f"[INFO] Configured independent drives: {configured}", flush=True)
@@ -162,5 +258,9 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
+    except Exception:
+        print("[ERROR] Failed to spawn RBY1:", file=sys.stderr, flush=True)
+        traceback.print_exc()
+        raise
     finally:
         simulation_app.close()
