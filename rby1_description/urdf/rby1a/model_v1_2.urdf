@@ -516,18 +516,31 @@
         </inertial>
 
         <visual>
-            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
-                    scale="0.001 0.001 0.001" />
+                <mesh filename="package://rby1_description/meshes/rby1a/GRIPPER_BODY.dae"/>
             </geometry>
         </visual>
 
         <collision>
-            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
-                    scale="0.001 0.001 0.001" />
+                <mesh filename="package://rby1_description/meshes/rby1a/GRIPPER_BODY.dae"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <link name="d405_link_r">
+        <visual>
+            <geometry>
+                <mesh filename="package://rby1_description/meshes/rby1a/D405.dae"/>
+            </geometry>
+        </visual>
+
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <mesh filename="package://rby1_description/meshes/rby1a/D405.dae"/>
             </geometry>
         </collision>
     </link>
@@ -587,18 +600,31 @@
         </inertial>
 
         <visual>
-            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
-                    scale="0.001 0.001 0.001" />
+                <mesh filename="package://rby1_description/meshes/rby1a/GRIPPER_BODY.dae"/>
             </geometry>
         </visual>
 
         <collision>
-            <origin xyz="0 0 0" rpy="1.57079632679 0 0" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://rby1_description/meshes/rby1a/parallel_gripper_wrist_cam.dae"
-                    scale="0.001 0.001 0.001" />
+                <mesh filename="package://rby1_description/meshes/rby1a/GRIPPER_BODY.dae"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <link name="d405_link_l">
+        <visual>
+            <geometry>
+                <mesh filename="package://rby1_description/meshes/rby1a/D405.dae"/>
+            </geometry>
+        </visual>
+
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <mesh filename="package://rby1_description/meshes/rby1a/D405.dae"/>
             </geometry>
         </collision>
     </link>
@@ -1059,6 +1085,12 @@
         <axis xyz="0 0 0"/>
     </joint>
 
+    <joint name="d405_joint_r" type="fixed">
+        <parent link="gripper_right"/>
+        <child link="d405_link_r"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
     <joint name="gripper_finger_r1_joint" type="prismatic">
         <parent link="gripper_right"/>
         <child link="gripper_finger_r1"/>
@@ -1095,6 +1127,12 @@
         <child link="gripper_left"/>
         <origin rpy="0 0.0 3.1415926535" xyz="0.0 0.0 -0.04"/>
         <axis xyz="0 0 0"/>
+    </joint>
+
+    <joint name="d405_joint_l" type="fixed">
+        <parent link="gripper_left"/>
+        <child link="d405_link_l"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>
 
     <joint name="gripper_finger_l1_joint" type="prismatic">
